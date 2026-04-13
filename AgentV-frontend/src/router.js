@@ -9,7 +9,7 @@ const routes = {
   "/": { render: renderHome },
   "/demo": { render: renderDemo, init: initDemo },
   "/privacy": { render: renderPrivacy },
-  "/terms": { render: renderTerms },
+  "/terms": { render: renderToS  },
 };
 
 function getRouteFromHash() {

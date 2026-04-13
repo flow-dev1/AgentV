@@ -1,0 +1,21 @@
+:root {
+  --bg: #f7f8fb;
+  --surface: #ffffff;
+  --text: #111827;
+  --muted: #4b5563;
+  --border: #dbe1ea;
+  --primary: #4f46e5;
+  --primary-contrast: #ffffff;
+  --shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #111827;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #1f2937;
+  --primary: #818cf8;
+  --primary-contrast: #0f172a;
+  --shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}

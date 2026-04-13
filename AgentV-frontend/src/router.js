@@ -9,17 +9,16 @@ const routes = {
   "/": { render: renderHome },
   "/demo": { render: renderDemo, init: initDemo },
   "/privacy": { render: renderPrivacy },
-  "/terms": { render: renderToS  },
+  "/terms": { render: renderToS },
 };
 
-function getRouteFromHash() {
-  const raw = window.location.hash.replace(/^#/, "") || "/";
-  return routes[raw] ? raw : "/";
+function getRoute() {
+  return routes[window.location.pathname] ? window.location.pathname : "/";
 }
 
 function renderApp() {
   const app = document.getElementById("app");
-  const route = getRouteFromHash();
+  const route = getRoute();
   const current = routes[route];
 
   app.innerHTML = `
@@ -31,14 +30,20 @@ function renderApp() {
   `;
 
   initNav();
-  if (typeof current.init === "function") {
-    current.init();
-  }
+  if (typeof current.init === "function") current.init();
 }
 
-window.addEventListener("DOMContentLoaded", () => {
-  if (!window.location.hash) {
-    window.location.hash = "/";
+// Handle back/forward buttons
+window.addEventListener("popstate", renderApp);
+
+// Intercept all link clicks
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (a && a.href.startsWith(window.location.origin)) {
+    e.preventDefault();
+    history.pushState({}, "", a.href);
+    renderApp();
   }
-  renderApp(); // ← always call renderApp, no early return
 });
+
+window.addEventListener("DOMContentLoaded", renderApp);

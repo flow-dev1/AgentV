@@ -1,17 +1,5 @@
-
-import os, json
-
-base = os.path.expanduser("~/AgentV-frontend")
-os.makedirs(base, exist_ok=True)
-
-# vercel.json
-vercel_config = {
+{
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
-
-with open(f"{base}/vercel.json", "w") as f:
-    json.dump(vercel_config, f, indent=2)
-
-print(open(f"{base}/vercel.json").read())

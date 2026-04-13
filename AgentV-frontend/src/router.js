@@ -3,7 +3,7 @@ import { renderFooter } from "./components/Footer.js";
 import { renderHome } from "./pages/Home.js";
 import { renderDemo, initDemo } from "./pages/Demo.js";
 import { renderPrivacy } from "./pages/Privacy.js";
-import { renderTerms } from "./pages/Terms.js";
+import { renderToS } from "./pages/Terms.js";
 
 const routes = {
   "/": { render: renderHome },

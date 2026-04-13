@@ -36,11 +36,9 @@ function renderApp() {
   }
 }
 
-window.addEventListener("hashchange", renderApp);
 window.addEventListener("DOMContentLoaded", () => {
   if (!window.location.hash) {
     window.location.hash = "/";
-    return;
   }
-  renderApp();
+  renderApp(); // ← always call renderApp, no early return
 });

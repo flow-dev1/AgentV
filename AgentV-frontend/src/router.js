@@ -2,12 +2,14 @@ import { renderNav, initNav } from "./components/Nav.js";
 import { renderFooter } from "./components/Footer.js";
 import { renderHome } from "./pages/Home.js";
 import { renderDemo, initDemo } from "./pages/Demo.js";
+import { renderViralMonitor } from "./pages/ViralMonitor.js";
 import { renderPrivacy } from "./pages/Privacy.js";
 import { renderToS } from "./pages/Terms.js";
 
 const routes = {
   "/": { render: renderHome },
   "/demo": { render: renderDemo, init: initDemo },
+  "/viral-monitor": { render: renderViralMonitor },
   "/privacy": { render: renderPrivacy },
   "/terms": { render: renderToS },
 };

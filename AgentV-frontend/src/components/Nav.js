@@ -2,10 +2,11 @@ const THEME_KEY = "agentv-theme";
 
 export function renderNav(activeRoute) {
   const links = [
-    { href: "#/", label: "Home", route: "/" },
-    { href: "#/demo", label: "Demo", route: "/demo" },
-    { href: "#/privacy", label: "Privacy", route: "/privacy" },
-    { href: "#/terms", label: "Terms", route: "/terms" },
+    { href: "/", label: "Home", route: "/" },
+    { href: "/demo", label: "Demo", route: "/demo" },
+    { href: "/viral-monitor", label: "Viral Monitor", route: "/viral-monitor" },
+    { href: "/privacy", label: "Privacy", route: "/privacy" },
+    { href: "/terms", label: "Terms", route: "/terms" },
   ];
 
   const navLinks = links
@@ -18,7 +19,7 @@ export function renderNav(activeRoute) {
   return `
     <header class="nav-wrap" id="site-nav">
       <div class="container nav">
-        <a href="#/" class="brand">AgentV</a>
+        <a href="/" class="brand">AgentV</a>
         <button id="mobile-menu-toggle" class="btn-secondary nav-toggle" aria-expanded="false" aria-label="Toggle menu">Menu</button>
         <nav id="mobile-menu" class="nav-links" aria-label="Primary navigation">
           ${navLinks}

@@ -1,5 +1,48 @@
 export function renderHome() {
+  const leadCards = [
+    { handle: "@studiofounder", score: 91, private: true, intent: "buy_intent" },
+    { handle: "@ugc_creator", score: 82, private: false, intent: "collab_intent" },
+    { handle: "@brandoperator", score: 76, private: true, intent: "faq_then_buy" },
+  ];
+
+  const sparklineData = [71, 74, 75, 78, 81, 84, 86];
+  const sparklinePoints = sparklineData
+    .map((value, index) => `${index * 30},${100 - value}`)
+    .join(" ");
+
+  const leadMarkup = leadCards
+    .map(
+      (lead) => `
+      <article class="lead-card">
+        <div class="lead-card-top">
+          <strong>${lead.handle}</strong>
+          <span class="intent-chip">${lead.intent}</span>
+        </div>
+        <div class="lead-meta">
+          <span class="lead-score">Lead Score: ${lead.score}</span>
+          <span class="account-badge ${lead.private ? "is-private" : "is-public"}">
+            ${lead.private ? "Private Account" : "Public Account"}
+          </span>
+        </div>
+      </article>
+    `,
+    )
+    .join("");
+
   return `
+    <section class="card shadow-mode-panel">
+      <div>
+        <h2>Shadow Mode Accuracy (Day 7)</h2>
+        <p>Track daily model precision while rating AI drafts before publish.</p>
+      </div>
+      <div class="sparkline-wrap" aria-label="7 day accuracy trend">
+        <svg viewBox="0 0 180 100" role="img" aria-label="Accuracy trend sparkline">
+          <polyline class="sparkline-line" points="${sparklinePoints}" />
+        </svg>
+        <p class="sparkline-caption">7-day avg: 78.4% → 86.0%</p>
+      </div>
+    </section>
+
     <section class="hero card">
       <h1>Build reliable TikTok automations with AgentV</h1>
       <p>
@@ -24,6 +67,14 @@ export function renderHome() {
           <h3>3. Act</h3>
           <p>Trigger internal automations from normalized event envelopes.</p>
         </article>
+      </div>
+    </section>
+
+    <section class="section card">
+      <h2>Priority Inbox Leads</h2>
+      <p>Private Account badges and lead scoring from the v4 intelligence loop.</p>
+      <div class="lead-grid">
+        ${leadMarkup}
       </div>
     </section>
 

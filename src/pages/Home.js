@@ -57,22 +57,51 @@ export async function initHome() {
   
   if (!statusNode || !button) return;
 
-  const userId = localStorage.getItem("user_id") || "sandbox_user_default";
+  // 1. ENSURE SECURE IDENTITY
+  // Upgrade from 'sandbox_user_default' to a secure UUID if needed
+  let userId = localStorage.getItem("user_id");
+  if (!userId || userId.startsWith("sandbox_user_")) { 
+    userId = crypto.randomUUID(); 
+    localStorage.setItem("user_id", userId);
+  }
 
-  // 1. Check Connection Status
-  const { data: tokenData } = await supabase
+  // 2. CHECK CONNECTION
+  // We no longer need .eq("user_id", userId) because the RLS policy 
+  // and the 'x-user-id' header handle the filtering automatically
+  const { data: tokenData, error } = await supabase
     .from("tiktok_tokens")
     .select("*")
-    .eq("user_id", userId)
     .maybeSingle();
 
+  if (error) {
+    console.error("Connection check failed. Check your RLS policy:", error.message);
+  }
+
   if (tokenData) {
+    // RENDER: Connected UI
     statusNode.textContent = "Connected to Sandbox";
     statusBlob.style.background = "#00ffa3";
     profileName.textContent = "TikTok Creator Account";
     button.textContent = "View Analytics";
     button.classList.replace("btn-primary", "btn-secondary");
     button.onclick = () => window.location.href = "/demo";
+
+    // Load your Live Dashboard Features
+    fetchAndRenderLeads(leadGrid); // Removed open_id param as RLS filters this too
+    fetchAndRenderSparkline(sparklineContainer);
+  } else {
+    // RENDER: Disconnected UI
+    statusNode.textContent = "TikTok Account Not Linked";
+    statusBlob.style.background = "#ff4444";
+    
+    button.onclick = () => {
+      button.disabled = true;
+      button.textContent = "Opening TikTok...";
+      const baseUrl = "https://ozewbffmbicddicxenlg.supabase.co";
+      window.location.href = `${baseUrl}/functions/v1/tiktok-auth?user_id=${encodeURIComponent(userId)}`;
+    };
+  }
+}
 
     // 2. Fetch Live Leads (Comment Logs)
     fetchAndRenderLeads(leadGrid, tokenData.open_id);

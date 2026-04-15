@@ -1,10 +1,12 @@
 import { supabase } from "../supabaseClient.js";
 
 /**
- * Renders the Skeleton of the Home Page
+ * Renders the HTML Structure of the Home Page
  */
 export function renderHome() {
   return `
+    <div id="alert-anchor"></div>
+
     <section class="card connection-status-card" id="connection-panel">
       <div class="status-info">
         <div class="status-indicator" id="status-blob"></div>
@@ -29,14 +31,23 @@ export function renderHome() {
       <section class="card action-center">
         <h2>Agent Intelligence</h2>
         <div class="action-list">
-          <div class="action-item"><span>Scan latest 10 comments</span> <button class="btn-tiny" id="run-scan-btn">Run</button></div>
-          <div class="action-item"><span>Verify AI Drafts</span> <button class="btn-tiny" onclick="window.location.href='/demo'">Review</button></div>
+          <div class="action-item">
+            <span>Scan latest 10 comments</span> 
+            <button class="btn-tiny" id="run-scan-btn">Run Scan</button>
+          </div>
+          <div class="action-item">
+            <span>Verify AI Drafts</span> 
+            <button class="btn-tiny" onclick="window.location.href='/demo'">Review</button>
+          </div>
         </div>
       </section>
     </div>
 
     <section class="section card">
       <h2>Priority Inbox Leads</h2>
+      <p style="font-size: 13px; color: #888; margin-bottom: 20px;">
+        High-intent leads identified by AgentV Intelligence Loop.
+      </p>
       <div class="lead-grid" id="live-lead-grid">
         <p class="loading-text">Fetching latest leads...</p>
       </div>
@@ -45,7 +56,7 @@ export function renderHome() {
 }
 
 /**
- * Logic & Data Fetching
+ * Initializes Event Listeners and Logic
  */
 export async function initHome() {
   const statusNode = document.getElementById("tiktok-connection-status");
@@ -54,101 +65,83 @@ export async function initHome() {
   const statusBlob = document.getElementById("status-blob");
   const leadGrid = document.getElementById("live-lead-grid");
   const sparklineContainer = document.getElementById("sparkline-container");
-  
+
   if (!statusNode || !button) return;
 
-  // 1. ENSURE SECURE IDENTITY
-  // Upgrade from 'sandbox_user_default' to a secure UUID if needed
+  // 1. Build-Safe Identity Setup
   let userId = localStorage.getItem("user_id");
-  if (!userId || userId.startsWith("sandbox_user_")) { 
-    userId = crypto.randomUUID(); 
+  if (!userId || userId.startsWith("sandbox_user_")) {
+    userId = crypto.randomUUID();
     localStorage.setItem("user_id", userId);
   }
 
-  // 2. CHECK CONNECTION
-  // We no longer need .eq("user_id", userId) because the RLS policy 
-  // and the 'x-user-id' header handle the filtering automatically
+  // 2. Real-time Listener for Mega-Viral Escalations (Spec v4 Addition 2)
+  supabase
+    .channel('mega_viral_alerts')
+    .on('broadcast', { event: 'mega_viral_escalation' }, (payload) => {
+      renderMegaViralAlert(payload.payload);
+    })
+    .subscribe();
+
+  // 3. Check Connection (Filtered by RLS x-user-id header)
   const { data: tokenData, error } = await supabase
     .from("tiktok_tokens")
     .select("*")
     .maybeSingle();
 
-  if (error) {
-    console.error("Connection check failed. Check your RLS policy:", error.message);
-  }
+  if (error) console.error("RLS Policy Check:", error.message);
 
   if (tokenData) {
-    // RENDER: Connected UI
+    // UI: Connected State
     statusNode.textContent = "Connected to Sandbox";
     statusBlob.style.background = "#00ffa3";
     profileName.textContent = "TikTok Creator Account";
-    button.textContent = "View Analytics";
+    button.textContent = "Account Linked";
     button.classList.replace("btn-primary", "btn-secondary");
-    button.onclick = () => window.location.href = "/demo";
+    button.disabled = true;
 
-    // Load your Live Dashboard Features
-    fetchAndRenderLeads(leadGrid); // Removed open_id param as RLS filters this too
+    // Load spec-specific data components
+    fetchAndRenderLeads(leadGrid);
     fetchAndRenderSparkline(sparklineContainer);
   } else {
-    // RENDER: Disconnected UI
+    // UI: Disconnected State
     statusNode.textContent = "TikTok Account Not Linked";
     statusBlob.style.background = "#ff4444";
-    
+    leadGrid.innerHTML = `<p>Connect your account to begin comment ingestion.</p>`;
+    sparklineContainer.innerHTML = `<p>Awaiting Shadow Mode data...</p>`;
+
     button.onclick = () => {
       button.disabled = true;
       button.textContent = "Opening TikTok...";
-      const baseUrl = "https://ozewbffmbicddicxenlg.supabase.co";
-      window.location.href = `${baseUrl}/functions/v1/tiktok-auth?user_id=${encodeURIComponent(userId)}`;
+      const authUrl = `https://ozewbffmbicddicxenlg.supabase.co/functions/v1/tiktok-auth?user_id=${encodeURIComponent(userId)}`;
+      window.location.href = authUrl;
     };
   }
 }
 
-    // 2. Fetch Live Leads (Comment Logs)
-    fetchAndRenderLeads(leadGrid, tokenData.open_id);
-
-    // 3. Fetch Accuracy Trend (Sparkline)
-    fetchAndRenderSparkline(sparklineContainer, tokenData.open_id);
-
-    // 4.  Listen for Mega-Viral Escalations
-const channel = supabase
-.channel('mega_viral_alerts')
-.on('broadcast', { event: 'mega_viral_escalation' }, (payload) => {
-  renderMegaViralAlert(payload.payload);
-})
-.subscribe();
-
+/**
+ * Render Mega-Viral Banner (Spec v4 Addition 2)
+ */
 function renderMegaViralAlert(data) {
-const container = document.getElementById("connection-panel"); // Or a dedicated alert div
-const alertHtml = `
-  <div class="card mega-viral-alert" style="border: 2px solid #ff4444; background: rgba(255, 68, 68, 0.1); margin-bottom: 20px;">
-    <h2 style="color: #ff4444;">🚨 MEGA-VIRAL EVENT DETECTED</h2>
-    <p>Video ${data.tiktok_video_id} has been viral for ${data.hours_in_viral} hours.</p>
-    <p>Current spike: <strong>+${data.current_spike_pct}%</strong>. Still growing.</p>
-    <div style="margin-top: 15px;">
-      <button class="btn-tiny" onclick="extendViral('${data.tiktok_video_id}', 24)">⚡ Extend 24 hrs</button>
-      <button class="btn-secondary btn-tiny" onclick="stopViral('${data.tiktok_video_id}')">⏹ Keep paused</button>
+  const anchor = document.getElementById("alert-anchor");
+  const alertHtml = `
+    <div class="card mega-viral-alert" style="border: 2px solid #ff4444; background: rgba(255, 68, 68, 0.1); margin-bottom: 25px; padding: 25px;">
+      <h2 style="color: #ff4444; margin-top: 0;">🚨 MEGA-VIRAL EVENT DETECTED</h2>
+      <p>Video <strong>${data.tiktok_video_id}</strong> has been viral for ${data.hours_in_viral} hours and is still spiking at ${data.current_spike_pct}%.</p>
+      <p style="font-size: 14px; color: #ccc;">High-frequency polling paused to protect API limits. Escalating to human decision.</p>
+      <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <button class="btn-primary btn-tiny" onclick="window.extendViral('${data.tiktok_video_id}', 24)">⚡ Extend 24 hrs</button>
+        <button class="btn-secondary btn-tiny" onclick="window.stopViral('${data.tiktok_video_id}')">⏹ Keep paused</button>
+      </div>
     </div>
-  </div>
-`;
-container.insertAdjacentHTML('beforebegin', alertHtml);
-}
-
-  } else {
-    statusNode.textContent = "TikTok Account Not Linked";
-    statusBlob.style.background = "#ff4444";
-    leadGrid.innerHTML = `<p>Connect your account to see lead intelligence.</p>`;
-    sparklineContainer.innerHTML = `<p>Awaiting connection data...</p>`;
-    
-    button.addEventListener("click", () => {
-      window.location.href = `https://ozewbffmbicddicxenlg.supabase.co/functions/v1/tiktok-auth?user_id=${userId}`;
-    });
-  }
+  `;
+  anchor.innerHTML = alertHtml;
 }
 
 /**
- * Addition 1 & Phase 1: Render Real Leads with Private Badge
+ * Fetch Leads with Private Account Logic (Spec v4 Addition 1)
  */
-async function fetchAndRenderLeads(container, accountId) {
+async function fetchAndRenderLeads(container) {
   const { data: leads, error } = await supabase
     .from("comment_logs")
     .select("*")
@@ -156,32 +149,36 @@ async function fetchAndRenderLeads(container, accountId) {
     .limit(4);
 
   if (error || !leads || leads.length === 0) {
-    container.innerHTML = `<p>No leads detected yet. Run a scan to begin.</p>`;
+    container.innerHTML = `<p>No leads detected yet. Run a scan to populate the inbox.</p>`;
     return;
   }
 
-  container.innerHTML = leads.map(lead => `
-    <article class="lead-card">
-      <div class="lead-card-top">
-        <strong>@${lead.author_handle || 'hidden_user'}</strong>
-        <span class="intent-chip">${lead.intent_label || 'analyzing'}</span>
-      </div>
-      <p class="comment-text">"${lead.content}"</p>
-      <div class="lead-meta">
-        <span class="lead-score">Score: ${lead.lead_score}/100</span>
-        ${lead.account_is_private ? 
-          `<span class="account-badge is-private" title="Follower reach unknown. Treat as high-intent.">🔒 Private</span>` : 
-          `<span class="account-badge is-public">Public</span>`
-        }
-      </div>
-    </article>
-  `).join("");
+  container.innerHTML = leads.map(lead => {
+    const isPrivate = lead.account_is_private;
+    return `
+      <article class="lead-card">
+        <div class="lead-card-top">
+          <strong>@${lead.author_handle || 'user'}</strong>
+          <span class="intent-chip">${lead.intent_label || 'analyzing'}</span>
+        </div>
+        <p class="comment-text">"${lead.content}"</p>
+        <div class="lead-meta">
+          <span class="lead-score">Lead Score: ${lead.lead_score}/100</span>
+          ${isPrivate ? 
+            `<span class="account-badge is-private" title="Follower reach unknown. Score may be understated.">🔒 Private Account</span>` : 
+            `<span class="account-badge is-public">Public Account</span>`
+          }
+        </div>
+        ${isPrivate ? `<p style="font-size: 10px; color: #666; margin-top: 5px;">Score may be understated. Treat as high-intent.</p>` : ''}
+      </article>
+    `;
+  }).join("");
 }
 
 /**
- * Addition 3: Accuracy Trend Sparkline from DB
+ * Accuracy Trend Sparkline (Spec v4 Addition 3)
  */
-async function fetchAndRenderSparkline(container, accountId) {
+async function fetchAndRenderSparkline(container) {
   const { data: logs } = await supabase
     .from("shadow_mode_accuracy_log")
     .select("accuracy_pct")
@@ -189,14 +186,13 @@ async function fetchAndRenderSparkline(container, accountId) {
     .limit(7);
 
   if (!logs || logs.length < 2) {
-    container.innerHTML = `<p class="sparkline-caption">Not enough data for trend. (Min 2 days)</p>`;
+    container.innerHTML = `<p class="sparkline-caption">Shadow Mode Day 1: Collecting baseline accuracy...</p>`;
     return;
   }
 
   const points = logs.map((log, i) => `${i * 30},${100 - log.accuracy_pct}`).join(" ");
   const currentAcc = logs[logs.length - 1].accuracy_pct;
-  const prevAcc = logs[logs.length - 2].accuracy_pct;
-  const trend = (currentAcc - prevAcc).toFixed(1);
+  const trend = (currentAcc - logs[logs.length - 2].accuracy_pct).toFixed(1);
 
   container.innerHTML = `
     <div class="sparkline-wrap">
@@ -204,7 +200,7 @@ async function fetchAndRenderSparkline(container, accountId) {
         <polyline class="sparkline-line" points="${points}" />
       </svg>
       <p class="sparkline-caption">
-        Current: ${currentAcc}% 
+        Current Accuracy: <strong>${currentAcc}%</strong> 
         <span style="color: ${trend >= 0 ? '#00ffa3' : '#ff4444'}">
           (${trend >= 0 ? '▲' : '▼'} ${trend}%)
         </span>
@@ -212,3 +208,19 @@ async function fetchAndRenderSparkline(container, accountId) {
     </div>
   `;
 }
+
+// Attach Mega-Viral actions to window for HTML onclick access
+window.extendViral = async (videoId, hours) => {
+  await supabase.from('viral_queue').upsert({ 
+    tiktok_video_id: videoId, 
+    active_until: new Date(Date.now() + hours * 60 * 60 * 1000).toISOString() 
+  });
+  alert("Monitoring Extended");
+  location.reload();
+};
+
+window.stopViral = async (videoId) => {
+  await supabase.from('viral_queue').delete().eq('tiktok_video_id', videoId);
+  await supabase.from('viral_mode_log').update({ ended_at: new Date() }).eq('tiktok_video_id', videoId);
+  location.reload();
+};

@@ -20,11 +20,11 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Inside your tiktok-auth function...
+// Inside your tiktok-auth function...
 
 const state = crypto.randomUUID();
 
-// Define the scopes exactly as you requested
+// CHANGE: Use commas for the Authorize endpoint
 const scopes = [
   "user.info.basic",
   "video.publish",
@@ -32,13 +32,13 @@ const scopes = [
   "user.info.profile",
   "user.info.stats",
   "video.list"
-].join(" "); // Joins them with spaces
+].join(","); // Changed from " " to ","
 
 const params = new URLSearchParams({
-  client_key: CLIENT_KEY,
-  scope: scopes, // URLSearchParams will handle the encoding
+  client_key: Deno.env.get("TIKTOK_CLIENT_KEY_SANDBOX")!,
+  scope: scopes, 
   response_type: "code",
-  redirect_uri: REDIRECT_URI,
+  redirect_uri: Deno.env.get("TIKTOK_REDIRECT_URI")!,
   state: state,
 });
 

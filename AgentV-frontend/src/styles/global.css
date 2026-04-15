@@ -212,9 +212,46 @@ a {
   gap: 0.6rem;
 }
 
+.connection-status-card {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.connection-status-card .btn-primary {
+  background: #ff0050;
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.connection-status-card .btn-primary:hover {
+  opacity: 0.9;
+}
+
+.connection-status-card .btn-primary.loading {
+  background: #555;
+  cursor: not-allowed;
+}
+
 @media (max-width: 780px) {
   .shadow-mode-panel {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .connection-status-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
   }
 }

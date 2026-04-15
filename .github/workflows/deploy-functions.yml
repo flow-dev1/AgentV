@@ -1,0 +1,46 @@
+name: Deploy Supabase Functions
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/deploy-functions.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+      uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+      uses: supabase/setup-cli@v1
+      with:
+        version: latest
+
+      - name: Link Supabase project
+      run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Deploy Edge Functions
+      run: |
+        set -e
+        supabase functions deploy tiktok-auth
+        supabase functions deploy tiktok-callback
+        supabase functions deploy tiktok_webhook
+        supabase functions deploy comment_monitor
+        supabase functions deploy engagement_router
+        supabase functions deploy follower_enricher
+        supabase functions deploy video_auto_tagger
+        supabase functions deploy viral_mode_checker
+        supabase functions deploy accuracy_tracker
+        supabase functions deploy trend_analyzer
+        supabase functions deploy creative_brief
+        supabase functions deploy script_fuzzy_matcher
+      env:
+        SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

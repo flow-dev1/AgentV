@@ -1,48 +1,54 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const FUNCTION_NAME = "accuracy_tracker";
-
-type RequestBody = {
-  traceId?: string;
-  rating?: number;
-  draftId?: string;
-};
-
-function jsonResponse(body: Record<string, unknown>, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
-}
+const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
 Deno.serve(async (req) => {
-  try {
-    if (req.method !== "POST") {
-      return jsonResponse(
-        { ok: false, error: { code: "METHOD_NOT_ALLOWED", message: "Use POST." } },
-        405,
-      );
-    }
+  const { tiktok_account_id } = await req.json()
+  const today = new Date().toISOString().split('T')[0]
 
-    const body = (await req.json()) as RequestBody;
+  // 1. Fetch all shadow_drafted comments handled today
+  const { data: logs } = await supabase
+    .from('comment_logs')
+    .select('status, detected_intent')
+    .eq('tiktok_account_id', tiktok_account_id)
+    .eq('shadow_mode_active', true)
+    .gte('processed_at', today)
 
-    // TODO(v4): Aggregate daily shadow-mode quality ratings for 7-day onboarding.
-    // TODO(v4): Return trend datapoints consumed by UI sparkline panel.
-    return jsonResponse({
-      ok: true,
-      function: FUNCTION_NAME,
-      traceId: body.traceId ?? crypto.randomUUID(),
-      draftId: body.draftId ?? null,
-      rating: body.rating ?? null,
-      receivedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    return jsonResponse(
-      {
-        ok: false,
-        error: { code: "UNHANDLED_ERROR", message: (error as Error).message },
-      },
-      500,
-    );
+  if (!logs || logs.length === 0) {
+    return new Response(JSON.stringify({ message: "No drafts today" }), { status: 200 })
   }
-});
+
+  // 2. Aggregate counts for the day
+  const total = logs.length
+  const approved = logs.filter(l => l.status === 'auto_replied').length // Would have approved
+  const edited = logs.filter(l => l.status === 'human_replied').length   // Would have edited
+  const rejected = logs.filter(l => l.status === 'ignored').length      // Wrong entirely
+  const accuracyPct = (approved / total) * 100
+
+  // 3. Category-specific accuracy
+  const getCatAcc = (intent: string) => {
+    const catLogs = logs.filter(l => l.detected_intent === intent)
+    return catLogs.length > 0 ? (catLogs.filter(l => l.status === 'auto_replied').length / catLogs.length) * 100 : 0
+  }
+
+  // 4. Fetch settings to determine Day Number
+  const { data: settings } = await supabase.from('agent_settings').select('shadow_mode_start').eq('tiktok_account_id', tiktok_account_id).single()
+  const dayNumber = Math.ceil((new Date().getTime() - new Date(settings.shadow_mode_start).getTime()) / (1000 * 60 * 60 * 24))
+
+  // 5. Upsert to accuracy log
+  await supabase.from('shadow_mode_accuracy_log').upsert({
+    tiktok_account_id,
+    day_number: dayNumber,
+    total_drafts: total,
+    approved_count: approved,
+    edited_count: edited,
+    rejected_count: rejected,
+    accuracy_pct: accuracyPct,
+    price_faq_accuracy: getCatAcc('price_faq'),
+    link_request_accuracy: getCatAcc('link_request'),
+    general_praise_accuracy: getCatAcc('general_praise'),
+    buy_intent_accuracy: getCatAcc('buy_intent')
+  })
+
+  return new Response(JSON.stringify({ ok: true, accuracy: accuracyPct }), { status: 200 })
+})

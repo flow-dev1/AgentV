@@ -1,14 +1,16 @@
 import { renderNav, initNav } from "./components/Nav.js";
 import { renderFooter } from "./components/Footer.js";
-import { renderHome } from "./pages/Home.js";
+import { renderHome, initHome } from "./pages/Home.js";
 import { renderDemo, initDemo } from "./pages/Demo.js";
+import { renderCallback, initCallback } from "./pages/Callback.js";
 import { renderViralMonitor } from "./pages/ViralMonitor.js";
 import { renderPrivacy } from "./pages/Privacy.js";
 import { renderToS } from "./pages/Terms.js";
 
 const routes = {
-  "/": { render: renderHome },
+  "/": { render: renderHome, init: initHome },
   "/demo": { render: renderDemo, init: initDemo },
+  "/callback": { render: renderCallback, init: initCallback },
   "/viral-monitor": { render: renderViralMonitor },
   "/privacy": { render: renderPrivacy },
   "/terms": { render: renderToS },
@@ -35,17 +37,25 @@ function renderApp() {
   if (typeof current.init === "function") current.init();
 }
 
-// Handle back/forward buttons
+function navigate(path) {
+  history.pushState({}, "", path);
+  renderApp();
+}
+
 window.addEventListener("popstate", renderApp);
 
-// Intercept all link clicks
 document.addEventListener("click", (e) => {
   const a = e.target.closest("a");
-  if (a && a.href.startsWith(window.location.origin)) {
-    e.preventDefault();
-    history.pushState({}, "", a.href);
-    renderApp();
-  }
+  if (!a) return;
+
+  const href = a.getAttribute("href");
+  if (!href) return;
+  if (href.startsWith("http") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+  if (href.startsWith("#")) return;
+  if (href === window.location.pathname) return;
+
+  e.preventDefault();
+  navigate(href);
 });
 
 window.addEventListener("DOMContentLoaded", renderApp);

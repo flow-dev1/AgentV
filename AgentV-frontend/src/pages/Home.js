@@ -1,3 +1,8 @@
+import { supabase } from "../supabaseClient.js";
+
+/**
+ * Renders the HTML Structure of the Home Page
+ */
 export function renderHome() {
   const leadCards = [
     { handle: "@studiofounder", score: 91, private: true, intent: "buy_intent" },
@@ -25,11 +30,28 @@ export function renderHome() {
           </span>
         </div>
       </article>
-    `,
+    `
     )
     .join("");
 
   return `
+    <section class="card connection-status-card">
+      <div>
+        <h3>Platform Integration</h3>
+        <p>
+          Status: 
+          <strong id="tiktok-connection-status">Checking connection...</strong>
+        </p>
+      </div>
+      <button 
+        id="connect-tiktok-btn" 
+        class="btn-primary" 
+        type="button"
+      >
+        Connect TikTok Sandbox
+      </button>
+    </section>
+
     <section class="card shadow-mode-panel">
       <div>
         <h2>Shadow Mode Accuracy (Day 7)</h2>
@@ -46,10 +68,10 @@ export function renderHome() {
     <section class="hero card">
       <h1>Build reliable TikTok automations with AgentV</h1>
       <p>
-        Unified webhook ingestion, secure OAuth flows, and real-time observability
+        Unified webhook ingestion, secure OAuth flows, and real-time observability 
         for campaign and creator tooling.
       </p>
-      <a class="btn-primary" href="#/demo">Explore live demo</a>
+      <a class="btn-primary" href="/demo">Explore live demo</a>
     </section>
 
     <section class="section card">
@@ -87,4 +109,63 @@ export function renderHome() {
       </div>
     </section>
   `;
+}
+
+/**
+ * Helper to verify connection with Supabase
+ */
+async function checkConnection() {
+  try {
+    const { data } = await supabase.from("tiktok_tokens").select("open_id").maybeSingle();
+    return Boolean(data);
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Initializes Event Listeners and Logic for the Home Page
+ */
+export async function initHome() {
+  const statusNode = document.getElementById("tiktok-connection-status");
+  const button = document.getElementById("connect-tiktok-btn");
+  if (!statusNode || !button) return;
+
+  const setLoading = (loading) => {
+    button.disabled = loading;
+    button.classList.toggle("loading", loading);
+    button.textContent = loading ? "Opening TikTok..." : "Connect TikTok Sandbox";
+  };
+
+  // 1. Initial Status Check
+  const connected = await checkConnection();
+  if (connected) {
+    statusNode.textContent = "Connected to Sandbox";
+    button.textContent = "Account Linked";
+    button.classList.replace("btn-primary", "btn-secondary");
+    button.disabled = true;
+    return;
+  }
+
+  statusNode.textContent = "Disconnected";
+
+  // 2. Click Handler
+  button.addEventListener("click", () => {
+    setLoading(true);
+
+    // Sandbox Fix: If user_id is missing, we create a default one to avoid the error
+    let userId = localStorage.getItem("user_id");
+    if (!userId) {
+      userId = "sandbox_user_" + Math.floor(Math.random() * 1000);
+      localStorage.setItem("user_id", userId);
+      console.log("AgentV: Created sandbox user_id:", userId);
+    }
+
+    // Direct Browser Navigation (Bypasses CORS/Preflight issues)
+    // Points to the function we deployed earlier
+    const baseUrl = "https://ozewbffmbicddicxenlg.supabase.co"; // Replace with VITE_SUPABASE_URL if Vite is working
+    const url = `${baseUrl}/functions/v1/tiktok-auth?user_id=${encodeURIComponent(userId)}`;
+    
+    window.location.href = url;
+  });
 }

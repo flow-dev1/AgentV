@@ -1,6 +1,6 @@
 // Ensure this matches the function name in your Supabase 'functions' folder!
 // Based on your error log, it is 'tiktok_oauth_callback'
-const CALLBACK_URL = "https://ozewbffmbicddicxenlg.supabase.co/functions/v1/tiktok_oauth_callback";
+const CALLBACK_URL = "https://ozewbffmbicddicxenlg.supabase.co/functions/v1/tiktok-callback";
 
 export function renderCallback() {
   return `

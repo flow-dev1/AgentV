@@ -1,171 +1,185 @@
 import { supabase } from "../supabaseClient.js";
 
 /**
- * Renders the HTML Structure of the Home Page
+ * Renders the Skeleton of the Home Page
  */
 export function renderHome() {
-  const leadCards = [
-    { handle: "@studiofounder", score: 91, private: true, intent: "buy_intent" },
-    { handle: "@ugc_creator", score: 82, private: false, intent: "collab_intent" },
-    { handle: "@brandoperator", score: 76, private: true, intent: "faq_then_buy" },
-  ];
-
-  const sparklineData = [71, 74, 75, 78, 81, 84, 86];
-  const sparklinePoints = sparklineData
-    .map((value, index) => `${index * 30},${100 - value}`)
-    .join(" ");
-
-  const leadMarkup = leadCards
-    .map(
-      (lead) => `
-      <article class="lead-card">
-        <div class="lead-card-top">
-          <strong>${lead.handle}</strong>
-          <span class="intent-chip">${lead.intent}</span>
-        </div>
-        <div class="lead-meta">
-          <span class="lead-score">Lead Score: ${lead.score}</span>
-          <span class="account-badge ${lead.private ? "is-private" : "is-public"}">
-            ${lead.private ? "Private Account" : "Public Account"}
-          </span>
-        </div>
-      </article>
-    `
-    )
-    .join("");
-
   return `
-    <section class="card connection-status-card">
-      <div>
-        <h3>Platform Integration</h3>
-        <p>
-          Status: 
-          <strong id="tiktok-connection-status">Checking connection...</strong>
-        </p>
+    <section class="card connection-status-card" id="connection-panel">
+      <div class="status-info">
+        <div class="status-indicator" id="status-blob"></div>
+        <div>
+          <h3 id="profile-name">Platform Integration</h3>
+          <p id="tiktok-connection-status">Checking connection...</p>
+        </div>
       </div>
-      <button 
-        id="connect-tiktok-btn" 
-        class="btn-primary" 
-        type="button"
-      >
+      <button id="connect-tiktok-btn" class="btn-primary" type="button">
         Connect TikTok Sandbox
       </button>
     </section>
 
-    <section class="card shadow-mode-panel">
-      <div>
-        <h2>Shadow Mode Accuracy (Day 7)</h2>
-        <p>Track daily model precision while rating AI drafts before publish.</p>
-      </div>
-      <div class="sparkline-wrap" aria-label="7 day accuracy trend">
-        <svg viewBox="0 0 180 100" role="img" aria-label="Accuracy trend sparkline">
-          <polyline class="sparkline-line" points="${sparklinePoints}" />
-        </svg>
-        <p class="sparkline-caption">7-day avg: 78.4% → 86.0%</p>
-      </div>
-    </section>
+    <div class="grid-2">
+      <section class="card shadow-mode-panel">
+        <h2>Shadow Mode Accuracy</h2>
+        <div id="sparkline-container">
+           <p class="loading-text">Loading trend data...</p>
+        </div>
+      </section>
 
-    <section class="hero card">
-      <h1>Build reliable TikTok automations with AgentV</h1>
-      <p>
-        Unified webhook ingestion, secure OAuth flows, and real-time observability 
-        for campaign and creator tooling.
-      </p>
-      <a class="btn-primary" href="/demo">Explore live demo</a>
-    </section>
-
-    <section class="section card">
-      <h2>How it works</h2>
-      <div class="grid-3">
-        <article>
-          <h3>1. Connect</h3>
-          <p>Authorize accounts and choose granular permissions per workspace.</p>
-        </article>
-        <article>
-          <h3>2. Receive</h3>
-          <p>Subscribe to webhook events and route payloads into your data stack.</p>
-        </article>
-        <article>
-          <h3>3. Act</h3>
-          <p>Trigger internal automations from normalized event envelopes.</p>
-        </article>
-      </div>
-    </section>
+      <section class="card action-center">
+        <h2>Agent Intelligence</h2>
+        <div class="action-list">
+          <div class="action-item"><span>Scan latest 10 comments</span> <button class="btn-tiny" id="run-scan-btn">Run</button></div>
+          <div class="action-item"><span>Verify AI Drafts</span> <button class="btn-tiny" onclick="window.location.href='/demo'">Review</button></div>
+        </div>
+      </section>
+    </div>
 
     <section class="section card">
       <h2>Priority Inbox Leads</h2>
-      <p>Private Account badges and lead scoring from the v4 intelligence loop.</p>
-      <div class="lead-grid">
-        ${leadMarkup}
-      </div>
-    </section>
-
-    <section class="section card">
-      <h2>Feature highlights</h2>
-      <div class="grid-3">
-        <article><h3>Tenant isolation</h3><p>Per-tenant secrets and scoped tokens.</p></article>
-        <article><h3>Replay protection</h3><p>Signature checks and idempotency keys.</p></article>
-        <article><h3>Audit trails</h3><p>End-to-end request and action visibility.</p></article>
+      <div class="lead-grid" id="live-lead-grid">
+        <p class="loading-text">Fetching latest leads...</p>
       </div>
     </section>
   `;
 }
 
 /**
- * Helper to verify connection with Supabase
+ * Logic & Data Fetching
  */
-async function checkConnection() {
-  try {
-    const { data } = await supabase.from("tiktok_tokens").select("open_id").maybeSingle();
-    return Boolean(data);
-  } catch (e) {
-    return false;
+export async function initHome() {
+  const statusNode = document.getElementById("tiktok-connection-status");
+  const profileName = document.getElementById("profile-name");
+  const button = document.getElementById("connect-tiktok-btn");
+  const statusBlob = document.getElementById("status-blob");
+  const leadGrid = document.getElementById("live-lead-grid");
+  const sparklineContainer = document.getElementById("sparkline-container");
+  
+  if (!statusNode || !button) return;
+
+  const userId = localStorage.getItem("user_id") || "sandbox_user_default";
+
+  // 1. Check Connection Status
+  const { data: tokenData } = await supabase
+    .from("tiktok_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (tokenData) {
+    statusNode.textContent = "Connected to Sandbox";
+    statusBlob.style.background = "#00ffa3";
+    profileName.textContent = "TikTok Creator Account";
+    button.textContent = "View Analytics";
+    button.classList.replace("btn-primary", "btn-secondary");
+    button.onclick = () => window.location.href = "/demo";
+
+    // 2. Fetch Live Leads (Comment Logs)
+    fetchAndRenderLeads(leadGrid, tokenData.open_id);
+
+    // 3. Fetch Accuracy Trend (Sparkline)
+    fetchAndRenderSparkline(sparklineContainer, tokenData.open_id);
+
+    // 4.  Listen for Mega-Viral Escalations
+const channel = supabase
+.channel('mega_viral_alerts')
+.on('broadcast', { event: 'mega_viral_escalation' }, (payload) => {
+  renderMegaViralAlert(payload.payload);
+})
+.subscribe();
+
+function renderMegaViralAlert(data) {
+const container = document.getElementById("connection-panel"); // Or a dedicated alert div
+const alertHtml = `
+  <div class="card mega-viral-alert" style="border: 2px solid #ff4444; background: rgba(255, 68, 68, 0.1); margin-bottom: 20px;">
+    <h2 style="color: #ff4444;">🚨 MEGA-VIRAL EVENT DETECTED</h2>
+    <p>Video ${data.tiktok_video_id} has been viral for ${data.hours_in_viral} hours.</p>
+    <p>Current spike: <strong>+${data.current_spike_pct}%</strong>. Still growing.</p>
+    <div style="margin-top: 15px;">
+      <button class="btn-tiny" onclick="extendViral('${data.tiktok_video_id}', 24)">⚡ Extend 24 hrs</button>
+      <button class="btn-secondary btn-tiny" onclick="stopViral('${data.tiktok_video_id}')">⏹ Keep paused</button>
+    </div>
+  </div>
+`;
+container.insertAdjacentHTML('beforebegin', alertHtml);
+}
+
+  } else {
+    statusNode.textContent = "TikTok Account Not Linked";
+    statusBlob.style.background = "#ff4444";
+    leadGrid.innerHTML = `<p>Connect your account to see lead intelligence.</p>`;
+    sparklineContainer.innerHTML = `<p>Awaiting connection data...</p>`;
+    
+    button.addEventListener("click", () => {
+      window.location.href = `https://ozewbffmbicddicxenlg.supabase.co/functions/v1/tiktok-auth?user_id=${userId}`;
+    });
   }
 }
 
 /**
- * Initializes Event Listeners and Logic for the Home Page
+ * Addition 1 & Phase 1: Render Real Leads with Private Badge
  */
-export async function initHome() {
-  const statusNode = document.getElementById("tiktok-connection-status");
-  const button = document.getElementById("connect-tiktok-btn");
-  if (!statusNode || !button) return;
+async function fetchAndRenderLeads(container, accountId) {
+  const { data: leads, error } = await supabase
+    .from("comment_logs")
+    .select("*")
+    .order("lead_score", { ascending: false })
+    .limit(4);
 
-  const setLoading = (loading) => {
-    button.disabled = loading;
-    button.classList.toggle("loading", loading);
-    button.textContent = loading ? "Opening TikTok..." : "Connect TikTok Sandbox";
-  };
-
-  // 1. Initial Status Check
-  const connected = await checkConnection();
-  if (connected) {
-    statusNode.textContent = "Connected to Sandbox";
-    button.textContent = "Account Linked";
-    button.classList.replace("btn-primary", "btn-secondary");
-    button.disabled = true;
+  if (error || !leads || leads.length === 0) {
+    container.innerHTML = `<p>No leads detected yet. Run a scan to begin.</p>`;
     return;
   }
 
-  statusNode.textContent = "Disconnected";
+  container.innerHTML = leads.map(lead => `
+    <article class="lead-card">
+      <div class="lead-card-top">
+        <strong>@${lead.author_handle || 'hidden_user'}</strong>
+        <span class="intent-chip">${lead.intent_label || 'analyzing'}</span>
+      </div>
+      <p class="comment-text">"${lead.content}"</p>
+      <div class="lead-meta">
+        <span class="lead-score">Score: ${lead.lead_score}/100</span>
+        ${lead.account_is_private ? 
+          `<span class="account-badge is-private" title="Follower reach unknown. Treat as high-intent.">🔒 Private</span>` : 
+          `<span class="account-badge is-public">Public</span>`
+        }
+      </div>
+    </article>
+  `).join("");
+}
 
-  // 2. Click Handler
-  button.addEventListener("click", () => {
-    setLoading(true);
+/**
+ * Addition 3: Accuracy Trend Sparkline from DB
+ */
+async function fetchAndRenderSparkline(container, accountId) {
+  const { data: logs } = await supabase
+    .from("shadow_mode_accuracy_log")
+    .select("accuracy_pct")
+    .order("recorded_at", { ascending: true })
+    .limit(7);
 
-    // Sandbox Fix: If user_id is missing, we create a default one to avoid the error
-    let userId = localStorage.getItem("user_id");
-    if (!userId) {
-      userId = "sandbox_user_" + Math.floor(Math.random() * 1000);
-      localStorage.setItem("user_id", userId);
-      console.log("AgentV: Created sandbox user_id:", userId);
-    }
+  if (!logs || logs.length < 2) {
+    container.innerHTML = `<p class="sparkline-caption">Not enough data for trend. (Min 2 days)</p>`;
+    return;
+  }
 
-    // Direct Browser Navigation (Bypasses CORS/Preflight issues)
-    // Points to the function we deployed earlier
-    const baseUrl = "https://ozewbffmbicddicxenlg.supabase.co"; // Replace with VITE_SUPABASE_URL if Vite is working
-    const url = `${baseUrl}/functions/v1/tiktok-auth?user_id=${encodeURIComponent(userId)}`;
-    
-    window.location.href = url;
-  });
+  const points = logs.map((log, i) => `${i * 30},${100 - log.accuracy_pct}`).join(" ");
+  const currentAcc = logs[logs.length - 1].accuracy_pct;
+  const prevAcc = logs[logs.length - 2].accuracy_pct;
+  const trend = (currentAcc - prevAcc).toFixed(1);
+
+  container.innerHTML = `
+    <div class="sparkline-wrap">
+      <svg viewBox="0 0 180 100">
+        <polyline class="sparkline-line" points="${points}" />
+      </svg>
+      <p class="sparkline-caption">
+        Current: ${currentAcc}% 
+        <span style="color: ${trend >= 0 ? '#00ffa3' : '#ff4444'}">
+          (${trend >= 0 ? '▲' : '▼'} ${trend}%)
+        </span>
+      </p>
+    </div>
+  `;
 }

@@ -46,19 +46,22 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 4. Save tokens linked to the user_id
-    const { error } = await supabase.from("tiktok_tokens").upsert(
-      {
-        user_id: user_id || 'sandbox_default', // Link to your agent
-        open_id: data.open_id,
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-        scope: data.scope,
-        expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
-        refresh_expires_at: new Date(Date.now() + data.refresh_expires_in * 1000).toISOString(),
-      },
-      { onConflict: "user_id" } // Ensures one agent = one TikTok account
-    );
+// 4. Save tokens using open_id as the primary conflict target
+const { error } = await supabase.from("tiktok_tokens").upsert(
+  {
+    user_id: user_id || 'sandbox_default', // Your secure UUID
+    open_id: data.open_id,
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    scope: data.scope,
+    expires_at: new Date(Date.now() + data.expires_in * 1000).toISOString(),
+    refresh_expires_at: new Date(Date.now() + data.refresh_expires_in * 1000).toISOString(),
+  },
+  { 
+    // Using open_id as the conflict target prevents pkey violations
+    onConflict: "open_id" 
+  } 
+);
 
     if (error) throw error;
 

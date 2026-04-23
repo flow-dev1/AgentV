@@ -65,6 +65,7 @@ export async function initHome() {
   const statusBlob = document.getElementById("status-blob");
   const leadGrid = document.getElementById("live-lead-grid");
   const sparklineContainer = document.getElementById("sparkline-container");
+  const scanBtn = document.getElementById("run-scan-btn");
 
   if (!statusNode || !button) return;
 
@@ -117,6 +118,30 @@ export async function initHome() {
       window.location.href = authUrl;
     };
   }
+
+  if (scanBtn) {
+    scanBtn.onclick = async () => {
+      scanBtn.disabled = true;
+      scanBtn.textContent = "Scanning...";
+
+      try {
+        const { data, error: invokeError } = await supabase.functions.invoke("comment-monitor", {
+          body: { user_id: localStorage.getItem("user_id") }
+        });
+
+        if (invokeError) throw invokeError;
+
+        alert(`Scan complete! Processed ${data?.processed_count || 0} comments.`);
+        location.reload();
+      } catch (err) {
+        console.error("Scan failed:", err);
+        alert("Scan failed. Check Supabase Edge Function logs.");
+      } finally {
+        scanBtn.disabled = false;
+        scanBtn.textContent = "Run Scan";
+      }
+    };
+  }
 }
 
 /**
@@ -165,11 +190,18 @@ async function fetchAndRenderLeads(container) {
         <div class="lead-meta">
           <span class="lead-score">Lead Score: ${lead.lead_score}/100</span>
           ${isPrivate ? 
-            `<span class="account-badge is-private" title="Follower reach unknown. Score may be understated.">🔒 Private Account</span>` : 
+            `<div class="private-warning">
+               <span class="account-badge is-private">🔒 Private Account</span>
+               <p style="font-size: 10px; color: #666;">Reach unknown. Treat as high-intent.</p>
+             </div>` : 
             `<span class="account-badge is-public">Public Account</span>`
           }
         </div>
-        ${isPrivate ? `<p style="font-size: 10px; color: #666; margin-top: 5px;">Score may be understated. Treat as high-intent.</p>` : ''}
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+          <button class="btn-tiny" onclick="window.rateLead('${lead.id}', 'approved')">Approve</button>
+          <button class="btn-tiny" onclick="window.rateLead('${lead.id}', 'edited')">Edited</button>
+          <button class="btn-tiny btn-secondary" onclick="window.rateLead('${lead.id}', 'rejected')">Reject</button>
+        </div>
       </article>
     `;
   }).join("");
@@ -222,5 +254,26 @@ window.extendViral = async (videoId, hours) => {
 window.stopViral = async (videoId) => {
   await supabase.from('viral_queue').delete().eq('tiktok_video_id', videoId);
   await supabase.from('viral_mode_log').update({ ended_at: new Date() }).eq('tiktok_video_id', videoId);
+  location.reload();
+};
+
+// Expose manual verification action so lead cards can record outcomes.
+window.rateLead = async (id, status) => {
+  const { error } = await supabase
+    .from("comment_logs")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Lead rating failed:", error);
+    alert("Unable to save rating. Check logs and try again.");
+    return;
+  }
+
+  const tiktokAccountId = localStorage.getItem("tiktok_account_id") || localStorage.getItem("user_id");
+  await supabase.functions.invoke("accuracy_tracker", {
+    body: { tiktok_account_id: tiktokAccountId, day_number: 1 }
+  });
+
   location.reload();
 };

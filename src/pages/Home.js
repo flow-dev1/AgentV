@@ -125,7 +125,7 @@ export async function initHome() {
       scanBtn.textContent = "Scanning...";
 
       try {
-        const { data, error: invokeError } = await supabase.functions.invoke("comment-monitor", {
+        const { data, error: invokeError } = await supabase.functions.invoke("comment_monitor", {
           body: { user_id: localStorage.getItem("user_id") }
         });
 
